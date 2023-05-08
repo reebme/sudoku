@@ -191,11 +191,13 @@ def solve_sudoku_csp(domain_size, sp, cg):
     forward_check(sp, cg, sp_domain)
     arc_constraints(sp, cg, sp_domain)
     q = deque()
-    print(sp)
-    print_domain(sp_domain, sp)
-    input()
+    #print(sp)
+    #print_domain(sp_domain, sp)
+    #input()
     q.append((sp, sp_domain))
     while q:
+        if q_len < len(q):
+            q_len = len(q)
         sp, sp_domain = q.pop()
         if assignement_complete(sp):
             print(f"Number of assignements checked: {no_of_assig_checks}")
@@ -211,21 +213,19 @@ def solve_sudoku_csp(domain_size, sp, cg):
             # forward checking
             if not forward_check(temp_sp, cg, temp_sp_domain):
                 back += 1
-                print("Backtracking")
-                input()
+                #print("Backtracking")
+                #input()
                 continue
             # constraint propagation
             if not arc_constraints(temp_sp, cg, temp_sp_domain):
                 back += 1
-                print("Backtracking")
-                input()
+                #print("Backtracking")
+                #input()
                 continue
-            print(temp_sp)
-            print_domain(temp_sp_domain, temp_sp)
-            input()
+            #print(temp_sp)
+            #print_domain(temp_sp_domain, temp_sp)
+            #input()
             q.append((temp_sp, temp_sp_domain))
-        if q_len < len(q):
-            q_len = len(q)
     return False
 
 def choose_first_unassigned(sp):
@@ -233,7 +233,20 @@ def choose_first_unassigned(sp):
     sp: 2D numpy array
         sudoku puzzle - current assignement, unassigned varialbles = 0
     '''
-    pass
+    rows, cols = sp.shape
+    for i in range(rows):
+        for j in range(cols):
+            if sp[i][j] == 0:
+                return (i, j)
+
+def find_legal_values(domain_size, sp, cg, i, j):
+    legal_vals = list(range(1, domain_size + 1))
+    for v in range(1, domain_size + 1):
+        for m, n in cg[(i,j)]:
+            if sp[m][n] == v:
+                legal_vals.remove(v)    
+                break
+    return legal_vals 
 
 def solve_sudoku_backtracking(domain_size, sp, cg):
     '''
@@ -244,15 +257,44 @@ def solve_sudoku_backtracking(domain_size, sp, cg):
     cg: adjacency list
         constraints represented as a graph
     Treats the problem as constraint satisfaction problem (csp).
-    Utilizes backtracking with forward and arc-consistency checking
     '''
+    # benchmarking variables
+    # no of times the algorithm backtracked
+    back = 0
+    # longest the queue has been
+    q_len = 0
+    # no of checked assignements
+    no_of_assig_checks = 0
+
+    #TODO test it
     q = deque()
     q.append(sp)
     while q:
+        if q_len < len(q):
+            q_len = len(q)
         sp = q.pop()
-        
+        if assignement_complete(sp):
+            print(f"Number of assignements checked: {no_of_assig_checks}")
+            print(f"Number of times algorithm backtracked: {back}")
+            print(f"Longest the queue has been: {q_len}")
+            return sp
+        no_of_assig_checks += 1
+        i, j = choose_first_unassigned(sp)
+        # assign legal value
+        vals = find_legal_values(domain_size, sp, cg, i, j)
+        if vals:
+            for v in vals:
+                temp_sp = copy.deepcopy(sp)
+                temp_sp[i][j] = v
+                q.append(temp_sp)
+        else:
+            # no legal values found, backtrack
+            back += 1
+            continue
 
 if __name__ == '__main__':
     domain_size, sp = import_problem_from_input()
     cg = generate_constraints_graph(domain_size)
+    print(sp)
+    print(solve_sudoku_backtracking(domain_size, sp, cg))
     print(solve_sudoku_csp(domain_size, sp, cg))

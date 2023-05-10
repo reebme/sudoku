@@ -13,6 +13,8 @@ import sys
 from math import sqrt
 from collections import deque
 import copy
+import random
+import time
 
 def import_problem_from_input():
     '''
@@ -177,6 +179,7 @@ def solve_sudoku_csp(domain_size, sp, cg):
     Utilizes backtracking with forward and arc-consistency checking
     returns solved sudoku puzzle (2D array) or False if no solutionw as found
     '''
+    #TODO it does the least checks and backtracks but takes the longest time
     sp_domain = generate_domain(domain_size)
     
     # some benchmarking variables
@@ -244,7 +247,8 @@ def find_legal_values(domain_size, sp, cg, i, j):
     for v in range(1, domain_size + 1):
         for m, n in cg[(i,j)]:
             if sp[m][n] == v:
-                legal_vals.remove(v)    
+                legal_vals.remove(v)
+                #TODO check if it moves execution to the for with v
                 break
     return legal_vals 
 
@@ -292,9 +296,88 @@ def solve_sudoku_backtracking(domain_size, sp, cg):
             back += 1
             continue
 
+def choose_random_coord(domain_size, sp, cv):
+    '''
+    returns random coordinates that have no legal value assigned
+    '''
+    while True:
+        #TODO
+        # it may be optimized to choose from list of unassigned coords
+        i = random.randint(0, domain_size - 1)
+        j = random.randint(0, domain_size - 1)
+        if sp[i][j] == 0:
+            return i, j
+        elif sp[i][j] > 0 and cv[i][j] == 1:
+            return i, j
+
+def is_violated(i, j, val, sp, cg):
+    '''
+    Returns True if value val in (i,j) is violating constraints or is 0
+    '''
+    for m, n in cg[(i, j)]:
+        if sp[m][n] == val or sp[m][n] == 0:
+            return True
+    return False
+
+def violated_coord(domain_size, sp, cv):
+    '''
+    returns 2D numpy array
+        wherever value in current assignement violates constraints corresponding value is 1
+    '''
+    for i in range(domain_size):
+        for j in range(domain_size):
+            # constraint is violated
+            if is_violated(i, j, sp[i][j], sp, cg):
+                cv[i][j] = 1
+            else:
+                cv[i][j] = 0
+    return cv
+
+def least_constraints_violated(domain_size, i, j, sp, cg):
+    val = 0
+    no_constr = domain_size * domain_size
+    for v in range(1, domain_size + 1):
+        temp_constr = 0
+        for m, n in cg[(i, j)]:
+            if sp[m][n] == v:
+                temp_constr += 1
+        if temp_constr < no_constr:
+            no_constr = temp_constr
+            val = v
+    return val
+
+def solve_sudoku_iter(domain_size, sp, cg):
+    '''
+    Choose variable randomly and assign a value that violates contraints the least
+    '''
+    # benchmarking variables
+    # no of checked assignements
+    no_of_assig_checks = 0
+    
+    cv = np.zeros((domain_size, domain_size), dtype = int)
+    cv = violated_coord(domain_size, sp, cv)
+    while assignement_complete(sp) == False and np.sum(cv) > 0:
+        no_of_assig_checks += 1
+        i, j = choose_random_coord(domain_size, sp, cv)
+        # choose value violating least possible no of constraints
+        sp[i][j] = least_constraints_violated(domain_size, i, j, sp, cg)
+        cv = violated_coord(domain_size, sp, cv)
+    print(f"Number of assignements checked: {no_of_assig_checks}")
+    return sp
+
 if __name__ == '__main__':
     domain_size, sp = import_problem_from_input()
     cg = generate_constraints_graph(domain_size)
     print(sp)
+    start = time.time()
     print(solve_sudoku_backtracking(domain_size, sp, cg))
+    end = time.time()
+    print(f"Time it took to reach the solution: {end - start}")
+    start = time.time()
     print(solve_sudoku_csp(domain_size, sp, cg))
+    end = time.time()
+    print(f"Time it took to reach the solution: {end - start}")
+    start = time.time()
+    print(solve_sudoku_iter(domain_size, sp, cg))
+    end = time.time()
+    print(f"Time it took to reach the solution: {end - start}")
